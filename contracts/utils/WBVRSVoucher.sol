@@ -1,10 +1,7 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: MIT
 pragma solidity 0.8.0;
 pragma abicoder v2; // required to accept structs as function parameters
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 
@@ -17,10 +14,12 @@ contract WBVRSVoucher is EIP712 {
 
     constructor() EIP712(SIGNING_DOMAIN, SIGNATURE_VERSION) {}
 
-    // Represents a schema to claim an NFT, which has already been minted on blockchain. A signed voucher can be redeemed for a real NFT using the claim function.
+    /// @dev Represents a schema to claim an NFT, which has already been minted on blockchain. A signed voucher can be redeemed for a real NFT using the claim function.
     struct NFTVoucher {
         // The id of the token to be redeemed. Must be unique - if another token with this ID already exists, the claim function will revert.
         uint256 tokenId;
+        // In case of ERC20 and ERC1155 the balance could be greater than 1. For ERC721 it must be set to 1.
+        uint256 balance;
         // The valid nonce value of the NFT creator, fetched through _nonces mapping.
         uint256 nonce;
         // The time period for which the voucher is valid.
@@ -69,9 +68,10 @@ contract WBVRSVoucher is EIP712 {
                 keccak256(
                     abi.encode(
                         keccak256(
-                            "NFTVoucher(uint256 tokenId,uint256 nonce,uint256 expiry)"
+                            "NFTVoucher(uint256 tokenId,uint256 balance,uint256 nonce,uint256 expiry)"
                         ),
                         voucher.tokenId,
+                        voucher.balance,
                         voucher.nonce,
                         voucher.expiry
                     )
