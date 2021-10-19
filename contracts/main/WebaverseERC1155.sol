@@ -16,7 +16,7 @@ contract WebaverseERC1155 is ERC1155, WBVRSVoucher, Ownable {
      */
     uint256 public currentTokenID = 0;
 
-    constructor(string memory _uri) ERC1155(_uri) {}
+    constructor() ERC1155("https://gateway.pinata.cloud/ipfs") {}
 
     function uri(uint256 _id) public view override returns (string memory) {
         return _tokenURIs[_id];
@@ -42,13 +42,12 @@ contract WebaverseERC1155 is ERC1155, WBVRSVoucher, Ownable {
         address signer = verifyVoucher(voucher);
 
         require(
-            balanceOf(signer, voucher.tokenId) == 0,
+            balanceOf(signer, voucher.tokenId) != 0,
             "WBVRS: Authorization failed: Invalid signature"
         );
 
-        _setApprovalForAll(signer, address(this), true);
         // transfer the token to the claimer
-        safeTransferFrom(
+        _safeTransferFrom(
             signer,
             claimer,
             voucher.tokenId,
@@ -76,11 +75,11 @@ contract WebaverseERC1155 is ERC1155, WBVRSVoucher, Ownable {
         address signer = verifyVoucher(voucher);
 
         require(
-            externalContract.balanceOf(signer, voucher.tokenId) == 0,
+            externalContract.balanceOf(signer, voucher.tokenId) != 0,
             "WBVRS: Authorization failed: Invalid signature"
         );
         require(
-            externalContract.isApprovedForAll(claimer, address(this)),
+            externalContract.isApprovedForAll(signer, address(this)),
             "WBVRS: Aprroval not set for WebaverseERC1155"
         );
 
@@ -97,30 +96,34 @@ contract WebaverseERC1155 is ERC1155, WBVRSVoucher, Ownable {
 
     function mint(
         address account,
+        uint256 tokenId,
         uint256 amount,
         string memory _uri,
         bytes memory data
     ) public {
-        _mint(account, _getNextTokenID(), amount, data);
-        _setTokenURI(_getNextTokenID(), _uri);
-        _incrementTokenId();
+        _mint(account, tokenId, amount, data);
+        _setTokenURI(tokenId, _uri);
     }
 
     function mintBatch(
         address to,
-        uint256 tokenCount,
+        uint256[] calldata ids,
         uint256[] memory values,
         string[] memory uris,
         bytes memory data
     ) public {
-        require(tokenCount == values.length);
-        uint256[] memory ids;
-        for (uint256 i = 0; i < tokenCount; i++) {
-            ids[i] = _getNextTokenID();
-            _setTokenURI(ids[i], uris[i]);
-            _incrementTokenId();
-        }
+        require(
+            ids.length == values.length,
+            "WBVRSERC1155: Ids and values length mismatch"
+        );
+        require(
+            ids.length == uris.length,
+            "WBVRSERC1155: Ids and URIs length mismatch"
+        );
         _mintBatch(to, ids, values, data);
+        for (uint256 i = 0; i < ids.length; i++) {
+            _setTokenURI(ids[i], uris[i]);
+        }
     }
 
     function safeTransfer(
@@ -146,10 +149,6 @@ contract WebaverseERC1155 is ERC1155, WBVRSVoucher, Ownable {
         uint256[] memory values
     ) public onlyOwner {
         _burnBatch(owner, ids, values);
-    }
-
-    function _getNextTokenID() private view returns (uint256) {
-        return currentTokenID + 1;
     }
 
     /**

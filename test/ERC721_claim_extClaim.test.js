@@ -50,7 +50,7 @@ async function deploy() {
     };
 }
 
-describe("Claim", async function () {
+describe("ERC721: Claim", async function () {
     var balance = 0;
     var validTokenIds = [1, 2, 3];
     var nonce = ethers.BigNumber.from(ethers.utils.randomBytes(4)).toNumber();
@@ -66,7 +66,7 @@ describe("Claim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 10000
             );
 
             //check if event transfer is emitted
@@ -86,7 +86,7 @@ describe("Claim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce + 1,
-                expiry + 100
+                expiry + 1000
             );
             await expect(claimerContract.claim(claimer.address, voucher)).to.be.revertedWith(
                 "Authorization failed: Invalid signature"
@@ -120,7 +120,7 @@ describe("Claim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 1000
             );
             await claimerContract.claim(claimer.address, voucher);
 
@@ -132,7 +132,7 @@ describe("Claim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 1000
             );
             await expect(signerContract.claim(signer.address, voucher)).to.be.revertedWith(
                 "Invalid nonce value"
@@ -149,7 +149,7 @@ describe("Claim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce + 1,
-                expiry + 100
+                expiry + 1000
             );
             voucher.tokenId = validTokenIds[1];
             await expect(claimerContract.claim(claimer.address, voucher)).to.be.revertedWith(
@@ -159,7 +159,7 @@ describe("Claim", async function () {
     });
 });
 
-describe("externalClaim", async function () {
+describe("ERC721: externalClaim", async function () {
     let balance = 1;
     var validTokenIds = [1, 2, 3];
     var nonce = ethers.BigNumber.from(ethers.utils.randomBytes(4)).toNumber();
@@ -184,7 +184,7 @@ describe("externalClaim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 1000
             );
 
             //check if event transfer is emitted
@@ -218,7 +218,7 @@ describe("externalClaim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 1000
             );
 
             //check if event transfer is emitted
@@ -283,7 +283,7 @@ describe("externalClaim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 1000
             );
             await claimerContract.externalClaim(
                 claimer.address,
@@ -301,7 +301,7 @@ describe("externalClaim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 1000
             );
 
             //check if event transfer is emitted
@@ -333,7 +333,7 @@ describe("externalClaim", async function () {
                 validTokenIds[0],
                 balance,
                 nonce,
-                expiry + 100
+                expiry + 1000
             );
             voucher.tokenId = 1;
             //check if event transfer is emitted
