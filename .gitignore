@@ -23,7 +23,7 @@ node_modules/
 .env
 *.zip
 
-build
-cache
+build/
+cache/
 .cache
 dist
