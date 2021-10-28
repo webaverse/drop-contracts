@@ -20,9 +20,9 @@ async function deploy() {
     const externalSignerFactory = WebaverseFactory.connect(externalSigner);
     const externalSignerContract = externalSignerFactory.attach(Webaverse.address);
 
-    await signerContract.mint(signer.address, 1, "abcdef");
-    await signerContract.mint(signer.address, 2, "xyzder");
-    await signerContract.mint(signer.address, 3, "qwerty");
+    await signerContract.mint(signer.address, "abcdef");
+    await signerContract.mint(signer.address, "xyzder");
+    await signerContract.mint(signer.address, "qwerty");
 
     let ERC721Factory = await ethers.getContractFactory("ERC721Mock");
     const ERC721 = await ERC721Factory.deploy("TEST", "test");

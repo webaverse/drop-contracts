@@ -1,10 +1,12 @@
 const { ClaimableVoucher } = require('../lib')
 import { ethers } from "ethers";
-import ABI from '../build/contracts/Webaverse.json';
+import ABI from '../build/contracts/main/WebaversERC721.sol/WebaverseERC721.json';
+
+declare let window: any;
 
 window.onload = async () => {
     await window.ethereum.enable();
-    const contractAddress = "0x6B2b44aE5cb9F23dFF68C998eC12d56b6B35DAe8";
+    const contractAddress = "0xb9c67E33f34c4BF882560417Da0D4E3A3E8D000d";
     const provider = new ethers.providers.Web3Provider((window as any).ethereum)
     const signer = provider.getSigner()
     let contract = new ethers.Contract(contractAddress, ABI.abi, signer);
@@ -19,7 +21,7 @@ window.onload = async () => {
                     console.log("From : ", from, "To :", to, "Token ID :", tokenId.toNumber());
                     (<HTMLInputElement>document.getElementById("claimText")).innerHTML = "Claimed !";
                 });
-            } catch (err) {
+            } catch (err: any) {
                 console.log(err.error.message);
                 (<HTMLInputElement>document.getElementById("claimText")).innerHTML = "Error !";
             }
@@ -28,13 +30,14 @@ window.onload = async () => {
 
 
     async function createVocuher(tokenId: number) {
-        const claimableVoucher = new ClaimableVoucher({ contractAddress: contractAddress, signer: signer })
+        const claimableVoucher = new ClaimableVoucher({ contract: contract, signer: signer })
 
         let timestamp = Math.round(new Date().getTime() / 1000) + 1000;
-        let nonce = await contract.nonces(await signer.getAddress());
+        let nonce = await ethers.BigNumber.from(ethers.utils.randomBytes(4)).toNumber();
+        let balance = 0;
 
         try {
-            voucher = await claimableVoucher.createVoucher(tokenId, nonce, timestamp);
+            voucher = await claimableVoucher.createVoucher(tokenId, balance, nonce, timestamp);
             (<HTMLInputElement>document.getElementById("createText")).innerHTML = "Created !";
         } catch (err) {
             (<HTMLInputElement>document.getElementById("createText")).innerHTML = "Error !";

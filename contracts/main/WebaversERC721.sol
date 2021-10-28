@@ -11,24 +11,23 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721, Ownable {
     // mapping to store the URIs of all the NFTs
     mapping(uint256 => string) private _tokenURIs;
 
+    uint256 public currentTokenID = 0;
+
     constructor() ERC721("WebaverseNFT", "WBVRS") {}
 
     /**
      * @notice Mints the a single NFT with given parameters.
      * @param account The address on which the NFT will be minted.
-     * @param tokenId The integer id of the NFT.
      * @param uri The URL of the NFT.
      * @notice 'tokenId' must be unique and must not overlap any existing tokenId.
      * @notice 'uri' should be a metadata json object stored on IPFS or HTTP server.
      **/
-    function mint(
-        address account,
-        uint256 tokenId,
-        string memory uri
-    ) public {
-        require(!_exists(tokenId), "Error: Token already exists");
+    function mint(address account, string memory uri) public returns (uint256) {
+        uint256 tokenId = getNextTokenId();
         _mint(account, tokenId);
         _setTokenURI(tokenId, uri);
+        _incrementTokenId();
+        return tokenId;
     }
 
     /**
@@ -127,6 +126,17 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721, Ownable {
             "This token's URI already exists"
         );
         _tokenURIs[tokenId] = uri;
+    }
+
+    function getNextTokenId() public view returns (uint256) {
+        return currentTokenID + 1;
+    }
+
+    /**
+     * @dev increments the value of _currentTokenID
+     */
+    function _incrementTokenId() private {
+        currentTokenID++;
     }
 
     /**

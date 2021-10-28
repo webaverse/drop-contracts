@@ -2,6 +2,10 @@
 
 > yarn install
 
+### Compile Smart Contracts:
+
+> npx hardhat compile
+
 ### To run the frontend:
 
 > yarn run dev
