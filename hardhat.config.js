@@ -1,6 +1,7 @@
 require("dotenv").config({ path: "./.env" });
 require("@nomiclabs/hardhat-waffle");
-var env = process.env.NODE_ENV || "hardhat";
+require("@nomiclabs/hardhat-etherscan");
+var env = process.env.NODE_ENV || "sidechain";
 const config = require("./config")[env];
 const network = config.network;
 
@@ -13,9 +14,15 @@ module.exports = {
             accounts: [config.priv_key],
             gas: 2100000,
         },
+        sidechain: {
+            url: "http://13.57.177.184:8545",
+            chainId: 1338,
+            accounts: [config.priv_key],
+            gas: 2100000,
+        },
     },
     solidity: {
-        version: "0.8.0",
+        version: "0.8.7",
         // settings: {
         //     optimizer: {
         //         enabled: true,
@@ -34,5 +41,10 @@ module.exports = {
     },
     environment: {
         chainId: config.chainId,
+    },
+    etherscan: {
+        // Your API key for Etherscan
+        // Obtain one at https://etherscan.io/
+        apiKey: "1W2RA3EXUF3KBGJ2USHXZCNRE75PDKDJNS",
     },
 };

@@ -1,7 +1,7 @@
 require("dotenv").config({ path: "./.env" });
 
 module.exports = {
-    testnet: {
+    rinkeby: {
         network: "rinkeby",
         chainId: 4,
         mnemonic: process.env.TEST_SECRET,
@@ -13,7 +13,12 @@ module.exports = {
     },
     hardhat: {
         network: "hardhat",
-        chainId: 31337,
+        chainId: "",
+        priv_key: process.env.PRIVATE_KEY,
+    },
+    sidechain: {
+        network: "sidechain",
+        chainId: 1338,
         priv_key: process.env.PRIVATE_KEY,
     },
 };
