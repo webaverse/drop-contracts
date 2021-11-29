@@ -61,9 +61,10 @@ describe("ERC20: Claim", async function () {
                 contract: signerContract,
                 signer: signer,
             });
+
+            // check if event transfer is emitted
             const voucher = await claimableVoucher.createVoucher(0, balance, nonce, expiry + 10000);
 
-            //check if event transfer is emitted
             await expect(claimerContract.claim(claimer.address, voucher))
                 .to.emit(claimerContract, "Transfer") // transfer from minter to redeemer
                 .withArgs(signer.address, claimer.address, balance);

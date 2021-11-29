@@ -1,7 +1,7 @@
 require("dotenv").config({ path: "./.env" });
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
-var env = process.env.NODE_ENV || "sidechain";
+var env = process.env.NODE_ENV || "hardhat";
 const config = require("./config")[env];
 const network = config.network;
 
@@ -10,7 +10,7 @@ module.exports = {
     networks: {
         hardhat: {},
         rinkeby: {
-            url: "https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+            url: `https://rinkeby.infura.io/v3/${config.infura_key}`,
             accounts: [config.priv_key],
             gas: 2100000,
         },
@@ -43,8 +43,6 @@ module.exports = {
         chainId: config.chainId,
     },
     etherscan: {
-        // Your API key for Etherscan
-        // Obtain one at https://etherscan.io/
-        apiKey: "1W2RA3EXUF3KBGJ2USHXZCNRE75PDKDJNS",
+        apiKey: config.etherscan_api_key,
     },
 };

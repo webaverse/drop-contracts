@@ -10,10 +10,11 @@ module.exports = {
         claimer_key: process.env.CLAIMER_PRIVATE_KEY,
         external_signer_key: process.env.EXTERNAL_SIGNER_PRIVATE_KEY,
         infura_key: process.env.INFURA_KEY,
+        etherscan_api_key: process.env.ETHERSCAN_API_KEY,
     },
     hardhat: {
         network: "hardhat",
-        chainId: "",
+        chainId: 31337,
         priv_key: process.env.PRIVATE_KEY,
     },
     sidechain: {
