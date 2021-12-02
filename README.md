@@ -1,39 +1,54 @@
-### Install Instruction:
+# drop-contracts
 
-> yarn install
+This codebase contains the smart contracts that implement Ethereum's Fungible i.e. ERC20 and, Non Fungible token standards i.e. ERC721, ERC115. Webaverse main app uses these smart contracts for utilizing the features such as `mint`, `drop`, and `redeem` (see [webaverse/app](https://github.com/webaverse/app)). All of the smart contracts follow the Ethereum EIP standards by using the interfaces for all the token standards.
 
-### Compile Smart Contracts:
+Currently, all the smart contracts reside on the `rinkeby` testnet and webaverse `sidechain`.
 
-> npx hardhat compile
+## Installation
+ 
+```bash
+# Clone the repo
+$ git clone https://github.com/webaverse/redis-server.git
 
-### To run the frontend:
+# Install the packages and dependencies
+$ npm install
+```
 
-> yarn run dev
+## Configuration
+1. Create a new file `.env` with the given template
+```bash
+# Infura Project Id
+INFURA_KEY = 9bbv673y23cn88cnm73hfqwwbf87zonf
 
-### To recomplie and deploy on rinkeby:
+# Private key
+PRIVATE_KEY = 8407415743ab6f7214df9fce86e7ad87ce5e0cef82822d1e6622d4043623f473
 
-> truffle migrate --network rinkeby
+# Test keys
+SIGNER_PRIVATE_KEY = 27b02257623d1fe8ca9594dfef495ad51080e80b84230bd63eea18f33a2a8229
+CLAIMER_PRIVATE_KEY = e536bff80ff5d9863cb983fc8cbbc117d53aa142f23c4e02250e93b90a6d751b
+EXTERNAL_SIGNER_PRIVATE_KEY = c2d3541a6ac24c67f0312a33d15daf0c0409776fbc092d8f55eee2edbdd7b8bb
 
-Add your secret mnemonic to a .secret file in the root directory.
+# Etherscan API key
+ETHERSCAN_API_KEY = 1ERUWBNCIUW8464WBCXBEWEU39CY5L2BD0
+```
 
-Note: After the contract is deployed please update the smart contract address in src/main.ts file
+## Build
+```bash
+# Compile the smart contracts, artifacts will be stored in the `build/` directory
 
-## Application Work Flow: (network rinkeby)
+$ npx hardhat compile
+```
 
-### Create claimable Voucher:
+## Migrations
+```bash
+# Deploy the smart contracts on different networks defined in `hardhat.config.js`
 
-1. Choose metamask wallet address (make sure this adress has already minted the tokenID in the contract)
-2. Enter token ID
-3. Press "create voucher" button to create the voucher
+$ npx hardhat run migrations/2_deploy_WebaverseERC721.js
+```
 
-### Claim the voucher:
+## Tests
+```bash
+# Run the tests for all the smart contracts
 
-1. Choose metamask wallet address from which you want to claim the NFT drop
-2. Enter the tokenID (of the same token for which the voucher was created)
-3. Press "Reddem an NFT" button to claim the NFT
-
-### To run the tests:
-
-> npm run test
-
-_Check metamask transaction confirmation inorder to verify the transfer on chain._
+$ npx hardhat test
+```
