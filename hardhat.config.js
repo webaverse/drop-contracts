@@ -1,16 +1,28 @@
+require("dotenv").config({ path: "./.env" });
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
+var env = process.env.NODE_ENV || "hardhat";
+const config = require("./config")[env];
+const network = config.network;
 
 module.exports = {
-    defaultNetwork: "hardhat",
+    defaultNetwork: network,
     networks: {
         hardhat: {},
-        // rinkeby: {
-        //   url: "https://eth-mainnet.alchemyapi.io/v2/123abc123abc123abc123abc123abcde",
-        //   accounts: [privateKey1, privateKey2, ...]
-        // }
+        rinkeby: {
+            url: `https://rinkeby.infura.io/v3/${config.infura_key}`,
+            accounts: [config.priv_key],
+            gas: 2100000,
+        },
+        sidechain: {
+            url: "http://13.57.177.184:8545",
+            chainId: 1338,
+            accounts: [config.priv_key],
+            gas: 2100000,
+        },
     },
     solidity: {
-        version: "0.8.0",
+        version: "0.8.7",
         // settings: {
         //     optimizer: {
         //         enabled: true,
@@ -26,5 +38,11 @@ module.exports = {
     },
     mocha: {
         timeout: 20000,
+    },
+    environment: {
+        chainId: config.chainId,
+    },
+    etherscan: {
+        apiKey: config.etherscan_api_key,
     },
 };
