@@ -8,7 +8,7 @@ async function deploy() {
     const [signer, claimer, externalSigner, _] = await ethers.getSigners();
 
     let WebaverseFactory = await ethers.getContractFactory("WebaverseERC20", signer);
-    const Webaverse = await WebaverseFactory.deploy();
+    const Webaverse = await WebaverseFactory.deploy("TEST", "test", 100000);
     await Webaverse.deployed();
 
     // the redeemerContract is an instance of the contract that's wired up to the redeemer's signing key

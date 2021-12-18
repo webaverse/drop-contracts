@@ -8,16 +8,25 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "../utils/WBVRSVoucher.sol";
 
 contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
-    //Base URI of the collection for Webaverse
-    string public baseURI;
+    // Mapping of white listed minters
+    mapping(address => bool) private _whitelistedMinters;
 
-    // mapping to store the URIs of all the NFTs
+    // Base URI of the collection for Webaverse
+    string private _WebaBaseURI;
+
+    // Mapping to store the URIs of all the NFTs
     mapping(uint256 => string) private _tokenURIs;
 
+    // State variable for storing the latest minted token id
     uint256 public currentTokenId;
 
+    // Event occuring when a token's URI is added or changed
     event URI(uint256 id, string uri);
+
+    // Event occuring when a token is redeemed by a user in the webaverse world for the native smart contract
     event Claim(address signer, address claimer, uint256 indexed id);
+
+    // Event occuring when a token is redeemed by a user in the webaverse world for the external smart contract
     event ExternalClaim(
         address indexed externalContract,
         address signer,
@@ -25,13 +34,36 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
         uint256 indexed id
     );
 
-    constructor() ERC721("WebaverseNFT", "WBVRS") {
-        baseURI = "https://gateway.pinata.cloud/ipfs/";
+    modifier onlyMinter() {
+        require(
+            isAllowedMinter(_msgSender()),
+            "ERC721: Only white listed minters are allowed to mint"
+        );
+        _;
     }
 
-    // Update or change the Base URI of the collection for Webaverse NFTs
-    function setBaseURI(string memory _uri) public onlyOwner {
-        baseURI = _uri;
+    constructor(
+        string memory name,
+        string memory symbol,
+        string memory baseURI_
+    ) ERC721(name, symbol) {
+        setBaseURI(baseURI_);
+        addMinter(msg.sender);
+    }
+
+    /**
+     * @return Returns the base URI of the host to fetch the metadata from (default empty).
+     */
+    function baseURI() public view returns (string memory) {
+        return _WebaBaseURI;
+    }
+
+    /**
+     * @dev Update or change the Base URI of the collection for Webaverse NFTs
+     * @param baseURI_ The base URI of the host to fetch the metadata from e.g. https://ipfs.io/ipfs/.
+     */
+    function setBaseURI(string memory baseURI_) public onlyOwner {
+        _WebaBaseURI = baseURI_;
     }
 
     /**
@@ -51,7 +83,7 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
         require(_exists(tokenId), "ERC721: URI query for nonexistent token");
 
         string memory _tokenURI = _tokenURIs[tokenId];
-        string memory base = baseURI;
+        string memory base = baseURI();
 
         // If there is no base URI, return the token URI.
         if (bytes(base).length == 0) {
@@ -72,7 +104,11 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
      * @notice 'tokenId' must be unique and must not overlap any existing tokenId.
      * @notice 'uri' should be a metadata json object stored on IPFS or HTTP server.
      **/
-    function mint(address account, string memory uri) public returns (uint256) {
+    function mint(address account, string memory uri)
+        public
+        onlyMinter
+        returns (uint256)
+    {
         uint256 tokenId = getNextTokenId();
         _mint(account, tokenId);
         setTokenURI(tokenId, uri);
@@ -91,7 +127,7 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
         address account,
         uint256 tokenCount,
         string memory cid
-    ) public onlyOwner {
+    ) public onlyMinter {
         uint256[] memory ids = new uint256[](tokenCount);
         string[] memory uris = new string[](tokenCount);
         for (uint256 i = 0; i < tokenCount; i++) {
@@ -176,22 +212,51 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
      * @param uri The URL of the NFT, through which the content of the NFT can be accessed.
      * @dev Token must be minted before setting the URI.
      **/
-    function setTokenURI(uint256 tokenId, string memory uri) public {
-        require(
-            _msgSender() == owner() || _msgSender() == ownerOf(tokenId),
-            "ERC721: Caller is not the owner"
-        );
+    function setTokenURI(uint256 tokenId, string memory uri) public onlyMinter {
         require(_exists(tokenId), "ERC721: Setting URI for non-existent token");
-        require(bytes(uri).length > 2, "ERC721: Invalid URI provided");
+        require(bytes(uri).length > 0, "ERC721: Invalid URI provided");
         _tokenURIs[tokenId] = uri;
-        emit URI(tokenId, string(abi.encodePacked(baseURI, uri)));
+        emit URI(tokenId, string(abi.encodePacked(baseURI(), uri)));
     }
 
+    /**
+     * @dev Sets the URIs for more than 1 tokens in a single batch.
+     * @param ids An array of addresses for which the URIs need to be set.
+     * @param uris An array of URLs of the NFT, through which the content of the NFT can be accessed.
+     * @notice Token must be minted before setting the URI.
+     **/
     function setBatchURI(uint256[] memory ids, string[] memory uris) public {
         for (uint256 i = 0; i < ids.length; i++) {
             setTokenURI(ids[i], uris[i]);
             emit URI(ids[i], uris[i]);
         }
+    }
+
+    /**
+     * @dev Checks if an address is allowed to mint ERC20 tokens
+     * @param account address to check for the white listing for
+     * @return true if address is allowed to mint
+     */
+    function isAllowedMinter(address account) public view returns (bool) {
+        return _whitelistedMinters[account];
+    }
+
+    /**
+     * @dev Add an account to the list of accounts allowed to create ERC20 tokens
+     * @param minter address to whitelist
+     */
+    function addMinter(address minter) public onlyOwner {
+        require(!isAllowedMinter(minter), "ERC20: Minter already added");
+        _whitelistedMinters[minter] = true;
+    }
+
+    /**
+     * @dev Remove an account from the list of accounts allowed to create ERC20 tokens
+     * @param minter address to remove from whitelist
+     */
+    function removeMinter(address minter) public onlyOwner {
+        require(isAllowedMinter(minter), "ERC20: Minter does not exist");
+        _whitelistedMinters[minter] = false;
     }
 
     function getNextTokenId() public view returns (uint256) {
@@ -203,6 +268,33 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
      */
     function _incrementTokenId() internal {
         currentTokenId++;
+    }
+
+    /**@dev Helper function to convert a uint to a string
+     * @param _i uint to convert
+     * @return _uintAsString string converted from uint
+     */
+    function uint2str(uint256 _i)
+        internal
+        pure
+        returns (string memory _uintAsString)
+    {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint256 k = len - 1;
+        while (_i != 0) {
+            bstr[k--] = bytes1(uint8(48 + (_i % 10)));
+            _i /= 10;
+        }
+        return string(bstr);
     }
 
     /**
