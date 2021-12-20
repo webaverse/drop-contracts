@@ -225,7 +225,7 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
      * @param uris An array of URLs of the NFT, through which the content of the NFT can be accessed.
      * @notice Token must be minted before setting the URI.
      **/
-    function setBatchURI(uint256[] memory ids, string[] memory uris) public {
+    function setBatchURI(uint256[] memory ids, string[] memory uris) public onlyMinter {
         for (uint256 i = 0; i < ids.length; i++) {
             setTokenURI(ids[i], uris[i]);
             emit URI(ids[i], uris[i]);
