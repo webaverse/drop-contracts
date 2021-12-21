@@ -117,4 +117,18 @@ contract Webaverse is OwnableUpgradeable {
         }
         require(_erc721.mint(to, uri) > 0, "Webaverse: mint failed");
     }
+
+    /**
+     * @dev Set the URI for a particular NFT
+     * @param tokenId Token ID of the NFT
+     * @param uri new URI of the NFT
+     * @notice This function can only be called by the owner of the NFT
+     */
+    function setTokenURI(uint256 tokenId, string memory uri) public {
+        require(
+            _erc721.ownerOf(tokenId) == msg.sender,
+            "Webaverse: setURI can only be called by the owner of the NFT"
+        );
+        _erc721.setTokenURI(tokenId, uri);
+    }
 }
