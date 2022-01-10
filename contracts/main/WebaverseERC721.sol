@@ -5,28 +5,40 @@ pragma abicoder v2; // required to accept structs as function parameters
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../utils/WBVRSVoucher.sol";
 
 contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
-    // Mapping of white listed minters
-    mapping(address => bool) private _whitelistedMinters;
+    using EnumerableSet for EnumerableSet.UintSet;
 
-    // Base URI of the collection for Webaverse
-    string private _WebaBaseURI;
+    mapping(address => bool) private _whitelistedMinters; // Mapping of white listed minters
+    string private _WebaBaseURI; // Base URI of the collection for Webaverse
+    uint256 public currentTokenId; // State variable for storing the latest minted token id
+    bool internal isPublicallyMintable; // whether anyone can mint tokens in this copy of the contract
+    mapping(uint256 => string) internal tokenIdToHash; // map of token id to hash it represents
+    mapping(string => uint256) internal hashToTokenId; // map of hash to token id it represents
+    mapping(string => Metadata[]) internal hashToMetadata; // map of hash to metadata key-value store
+    mapping(uint256 => address) internal minters; // map of tokens to minters
+    mapping(uint256 => Metadata[]) internal tokenIdToMetadata; // map of token id to metadata key-value store
 
-    // Mapping to store the URIs of all the NFTs
-    mapping(uint256 => string) private _tokenURIs;
+    struct Metadata {
+        string key;
+        string value;
+    }
 
-    // State variable for storing the latest minted token id
-    uint256 public currentTokenId;
+    struct Token {
+        uint256 id;
+        string hash;
+        string name;
+        string ext;
+        address minter;
+        address owner;
+    }
 
-    // Event occuring when a token's URI is added or changed
-    event URI(uint256 id, string uri);
-
-    // Event occuring when a token is redeemed by a user in the webaverse world for the native smart contract
+    event MetadataSet(string hash, string key, string value);
+    event SingleMetadataSet(uint256 tokenId, string key, string value);
+    event HashUpdate(string oldHash, string newHash);
     event Claim(address signer, address claimer, uint256 indexed id);
-
-    // Event occuring when a token is redeemed by a user in the webaverse world for the external smart contract
     event ExternalClaim(
         address indexed externalContract,
         address signer,
@@ -36,8 +48,8 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
 
     modifier onlyMinter() {
         require(
-            isAllowedMinter(_msgSender()),
-            "ERC721: Only white listed minters are allowed to mint"
+            isPublicallyMintable || isAllowedMinter(msg.sender),
+            "ERC721: unauthorized call"
         );
         _;
     }
@@ -67,78 +79,241 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
     }
 
     /**
-     * @notice View function that takes the unique tokenId and returns the uri against it.
-     * @param tokenId The integer id of the NFT.
-     * @dev The token being queried should already exist.
-     * @dev URI of the token should already be set.
-     * @return 'uri' URL of the the NFT against the given 'tokenId'.
-     **/
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        virtual
-        override
-        returns (string memory)
-    {
-        require(_exists(tokenId), "ERC721: URI query for nonexistent token");
-
-        string memory _tokenURI = _tokenURIs[tokenId];
-        string memory base = baseURI();
-
-        // If there is no base URI, return the token URI.
-        if (bytes(base).length == 0) {
-            return _tokenURI;
-        }
-        // If both are set, concatenate the baseURI and tokenURI (via abi.encodePacked).
-        if (bytes(_tokenURI).length > 0) {
-            return string(abi.encodePacked(base, _tokenURI));
-        }
-
-        return super.tokenURI(tokenId);
-    }
-
-    /**
      * @notice Mints the a single NFT with given parameters.
-     * @param account The address on which the NFT will be minted.
-     * @param uri The URL of the NFT.
-     * @notice 'tokenId' must be unique and must not overlap any existing tokenId.
-     * @notice 'uri' should be a metadata json object stored on IPFS or HTTP server.
+     * @param to The address on which the NFT will be minted.
+     * @param hash The URL of the NFT.
+     * @param name The name of the NFT.
+     * @param ext The name of the NFT.
+     * @param description The description of the NFT.
      **/
-    function mint(address account, string memory uri)
-        public
-        onlyMinter
-        returns (uint256)
-    {
+    function mint(
+        address to,
+        string memory hash,
+        string memory name,
+        string memory ext,
+        string memory description
+    ) public onlyMinter returns (uint256) {
         uint256 tokenId = getNextTokenId();
-        _mint(account, tokenId);
-        setTokenURI(tokenId, uri);
+        _mint(to, tokenId);
+        setMetadata(hash, "name", name);
+        setMetadata(hash, "ext", ext);
+        setMetadata(hash, "description", description);
+        minters[tokenId] = to;
+        tokenIdToHash[tokenId] = hash;
+        hashToTokenId[hash] = tokenId;
         _incrementTokenId();
         return tokenId;
     }
 
     /**
      * @notice Mints the a single NFT with given parameters.
-     * @param account The address on which the NFT will be minted.
-     * @param cid The URL of the NFT.
-     * @notice 'tokenId' must be unique and must not overlap any existing tokenId.
-     * @notice 'uri' should be a metadata json object stored on IPFS or HTTP server.
+     * @param to The address on which the NFT will be minted.
+     * @param hash The IPFS hash of the NFT.
+     * @param name The name of the NFT.
+     * @param ext The ext of the NFT e.g '.jpeg', '.gif'.
+     * @param description The IPFS hash of the NFT.
      **/
     function mintBatch(
-        address account,
-        uint256 tokenCount,
-        string memory cid
+        address to,
+        string[] memory hash,
+        string[] memory name,
+        string[] memory ext,
+        string[] memory description,
+        uint256 tokenCount
     ) public onlyMinter {
-        uint256[] memory ids = new uint256[](tokenCount);
-        string[] memory uris = new string[](tokenCount);
         for (uint256 i = 0; i < tokenCount; i++) {
-            ids[i] = getNextTokenId();
-            uris[i] = string(
-                abi.encodePacked(cid, "/", Strings.toString(i + 1), ".json")
-            );
-            _mint(account, ids[i]);
-            _incrementTokenId();
+            mint(to, hash[i], name[i], ext[i], description[i]);
         }
-        setBatchURI(ids, uris);
+    }
+
+    /**
+     * @dev Get metadata for the token. Metadata is a key-value store that can be set by owners and collaborators
+     * @param hash Token hash to query for metadata
+     * @param key Key to query for a value
+     * @return Value corresponding to metadata key
+     */
+    function getMetadata(string memory hash, string memory key)
+        public
+        view
+        returns (string memory)
+    {
+        for (uint256 i = 0; i < hashToMetadata[hash].length; i++) {
+            if (streq(hashToMetadata[hash][i].key, key)) {
+                return hashToMetadata[hash][i].value;
+            }
+        }
+        return "";
+    }
+
+    /**
+     * @dev Set metadata for the token. Metadata is a key-value store that can be set by owners and collaborators
+     * @param hash Token hash to add metadata to
+     * @param key Key to store value at
+     * @param value Value to store
+     */
+    function setMetadata(
+        string memory hash,
+        string memory key,
+        string memory value
+    ) public onlyMinter {
+        require(bytes(hash).length > 0, "hash cannot be empty"); // Hash cannot be empty (minting null items)
+        bool keyFound = false;
+        for (uint256 i = 0; i < hashToMetadata[hash].length; i++) {
+            if (streq(hashToMetadata[hash][i].key, key)) {
+                hashToMetadata[hash][i].value = value;
+                keyFound = true;
+                break;
+            }
+        }
+        if (!keyFound) {
+            hashToMetadata[hash].push(Metadata(key, value));
+        }
+
+        emit MetadataSet(hash, key, value);
+    }
+
+    /**
+     * @dev Get metadata for a single token (non-hashed)
+     * @param tokenId Token hash to add metadata to
+     * @param key Key to retrieve value for
+     * @return Returns the value stored for the key
+     */
+    function getSingleMetadata(uint256 tokenId, string memory key)
+        public
+        view
+        returns (string memory)
+    {
+        for (uint256 i = 0; i < tokenIdToMetadata[tokenId].length; i++) {
+            if (streq(tokenIdToMetadata[tokenId][i].key, key)) {
+                return tokenIdToMetadata[tokenId][i].value;
+            }
+        }
+        return "";
+    }
+
+    /**
+     * @dev Set metadata for a single token (non-hashed)
+     * @param tokenId Token hash to add metadata to
+     * @param key Key to store value at
+     * @param value Value to store
+     */
+    function setSingleMetadata(
+        uint256 tokenId,
+        string memory key,
+        string memory value
+    ) public onlyMinter {
+        bool keyFound = false;
+        for (uint256 i = 0; i < tokenIdToMetadata[tokenId].length; i++) {
+            if (streq(tokenIdToMetadata[tokenId][i].key, key)) {
+                tokenIdToMetadata[tokenId][i].value = value;
+                keyFound = true;
+                break;
+            }
+        }
+        if (!keyFound) {
+            tokenIdToMetadata[tokenId].push(Metadata(key, value));
+        }
+
+        emit SingleMetadataSet(tokenId, key, value);
+    }
+
+    /**
+     * @notice Get token id from hash
+     */
+    function getTokenIdFromHash(string memory hash)
+        public
+        view
+        returns (uint256)
+    {
+        return hashToTokenId[hash];
+    }
+
+    /**
+     * @notice Get token id from hash
+     */
+    function getHashFromTokenId(uint256 tokenId)
+        public
+        view
+        returns (string memory)
+    {
+        return tokenIdToHash[tokenId];
+    }
+
+    /**
+     * @dev Update token hash with a new hash
+     * @param oldHash Old hash to query
+     * @param newHash New hash to set
+     */
+    function updateHash(string memory oldHash, string memory newHash)
+        public
+        onlyMinter
+    {
+        require(hashToTokenId[oldHash] != 0, "ERC721: hash does not exist");
+        uint256 tokenId = hashToTokenId[oldHash];
+        hashToTokenId[newHash] = hashToTokenId[oldHash];
+        tokenIdToHash[tokenId] = newHash;
+        hashToMetadata[newHash] = hashToMetadata[oldHash];
+        delete hashToTokenId[oldHash];
+        delete hashToMetadata[oldHash];
+        emit HashUpdate(oldHash, newHash);
+    }
+
+    /**
+     * @dev List the tokens IDs owned by an account
+     * @param owner Address to query
+     * @return Array of token IDs
+     */
+    function getTokenIdsOf(address owner)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        uint256 count = balanceOf(owner);
+        uint256[] memory ids = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            ids[i] = tokenOfOwnerByIndex(owner, i);
+        }
+        return ids;
+    }
+
+    /**
+     * @dev Get the complete information for a token from it's ID
+     * @param tokenId Token ID to query
+     * @return Token struct containing token data
+     */
+    function tokenByIdFull(uint256 tokenId) public view returns (Token memory) {
+        string memory hash;
+        string memory name;
+        string memory ext;
+        hash = tokenIdToHash[tokenId];
+        name = getMetadata(hash, "name");
+        ext = getMetadata(hash, "ext");
+
+        address minter = minters[tokenId];
+        address owner = _exists(tokenId) ? ownerOf(tokenId) : address(0);
+        return Token(tokenId, hash, name, ext, minter, owner);
+    }
+
+    /**
+     * @dev Get the full Token struct from an owner address at a specific index
+     * @param owner Owner to query
+     * @param index Index in owner's balance to query
+     * @return Token struct containing token data
+     */
+    function tokenOfOwnerByIndexFull(address owner, uint256 index)
+        public
+        view
+        returns (Token memory)
+    {
+        uint256 tokenId = tokenOfOwnerByIndex(owner, index);
+        string memory hash;
+        string memory name;
+        string memory ext;
+        hash = tokenIdToHash[tokenId];
+        name = getMetadata(hash, "name");
+        ext = getMetadata(hash, "ext");
+        address minter = minters[tokenId];
+        return Token(tokenId, hash, name, ext, minter, owner);
     }
 
     /**
@@ -207,32 +382,6 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
     }
 
     /**
-     * @notice Use the mapping _tokenURIs for storing the URIs of NFTs.
-     * @param tokenId The address of the account which will receive the NFT upon success.
-     * @param uri The URL of the NFT, through which the content of the NFT can be accessed.
-     * @dev Token must be minted before setting the URI.
-     **/
-    function setTokenURI(uint256 tokenId, string memory uri) public onlyMinter {
-        require(_exists(tokenId), "ERC721: Setting URI for non-existent token");
-        require(bytes(uri).length > 0, "ERC721: Invalid URI provided");
-        _tokenURIs[tokenId] = uri;
-        emit URI(tokenId, string(abi.encodePacked(baseURI(), uri)));
-    }
-
-    /**
-     * @dev Sets the URIs for more than 1 tokens in a single batch.
-     * @param ids An array of addresses for which the URIs need to be set.
-     * @param uris An array of URLs of the NFT, through which the content of the NFT can be accessed.
-     * @notice Token must be minted before setting the URI.
-     **/
-    function setBatchURI(uint256[] memory ids, string[] memory uris) public onlyMinter {
-        for (uint256 i = 0; i < ids.length; i++) {
-            setTokenURI(ids[i], uris[i]);
-            emit URI(ids[i], uris[i]);
-        }
-    }
-
-    /**
      * @dev Checks if an address is allowed to mint ERC20 tokens
      * @param account address to check for the white listing for
      * @return true if address is allowed to mint
@@ -295,6 +444,21 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
             _i /= 10;
         }
         return string(bstr);
+    }
+
+    /**
+     * @dev Check if two strings are equal
+     * @param a First string to compare
+     * @param b Second string to compare
+     * @return Returns true if strings are equal
+     */
+    function streq(string memory a, string memory b)
+        internal
+        pure
+        returns (bool)
+    {
+        return (keccak256(abi.encodePacked((a))) ==
+            keccak256(abi.encodePacked((b))));
     }
 
     /**

@@ -103,32 +103,45 @@ contract Webaverse is OwnableUpgradeable {
     }
 
     /**
-     * @dev Mint an NFT with this contract
-     * @param to Address to which the NFT will be minted
-     * Example: 0x08E242bB06D85073e69222aF8273af419d19E4f6
-     * @notice This function needs the approval of the user from the WebaverseERC20 contract
-     */
-    function mint(address to, string memory uri) public {
+     * @notice Mints the a single NFT with given parameters.
+     * @param to The address on which the NFT will be minted.
+     * @param hash The URL of the NFT.
+     * @param name The name of the NFT.
+     * @param ext The name of the NFT.
+     * @param description The description of the NFT.
+     **/
+    function mint(
+        address to,
+        string memory hash,
+        string memory name,
+        string memory ext,
+        string memory description
+    ) public {
         if (mintFee() != 0) {
             require(
                 _erc20.transferFrom(msg.sender, treasuryAddress(), mintFee()),
                 "Webaverse: Mint transfer failed"
             );
         }
-        require(_erc721.mint(to, uri) > 0, "Webaverse: mint failed");
+        _erc721.mint(to, hash, name, ext, description);
     }
 
     /**
-     * @dev Set the URI for a particular NFT
-     * @param tokenId Token ID of the NFT
-     * @param uri new URI of the NFT
-     * @notice This function can only be called by the owner of the NFT
+     * @dev Set metadata for the token. Metadata is a key-value store that can be set by owners and collaborators
+     * @param hash Token hash to add metadata to
+     * @param key Key to store value at
+     * @param value Value to store
      */
-    function setTokenURI(uint256 tokenId, string memory uri) public {
+    function setMetadata(
+        string memory hash,
+        string memory key,
+        string memory value
+    ) public {
+        uint256 tokenId = _erc721.getTokenIdFromHash(hash);
         require(
             _erc721.ownerOf(tokenId) == msg.sender,
             "Webaverse: setURI can only be called by the owner of the NFT"
         );
-        _erc721.setTokenURI(tokenId, uri);
+        _erc721.setMetadata(hash, key, value);
     }
 }
