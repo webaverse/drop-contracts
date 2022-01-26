@@ -2,11 +2,15 @@
 
 pragma solidity ^0.8.7;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "../utils/WBVRSVoucher.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "../utils/WebaverseVoucher.sol";
 
-contract WebaverseERC20 is ERC20, WBVRSVoucher, Ownable {
+contract WebaverseERC20 is
+    ERC20Upgradeable,
+    WebaverseVoucher,
+    OwnableUpgradeable
+{
     // Mapping of addresses that are allowed to mint tokens
     mapping(address => bool) private _whitelistedMinters;
 
@@ -40,11 +44,14 @@ contract WebaverseERC20 is ERC20, WBVRSVoucher, Ownable {
      * set once during construction.
      * Default cap: 2147483648000000000000000000 or (2**31) + '000000000000000000'
      */
-    constructor(
+    function initialize(
         string memory name,
         string memory symbol,
         uint256 maxSupply_
-    ) ERC20(name, symbol) {
+    ) public initializer {
+        __Ownable_init_unchained();
+        __ERC20_init(name, symbol);
+        _webaverse_voucher_init();
         _maxSupply = maxSupply_;
         _whitelistedMinters[msg.sender] = true;
     }
@@ -135,7 +142,7 @@ contract WebaverseERC20 is ERC20, WBVRSVoucher, Ownable {
         address contractAddress,
         NFTVoucher calldata voucher
     ) public returns (uint256) {
-        IERC20 externalContract = IERC20(contractAddress);
+        IERC20Upgradeable externalContract = IERC20Upgradeable(contractAddress);
         // make sure signature is valid and get the address of the signer
         address signer = verifyVoucher(voucher);
 

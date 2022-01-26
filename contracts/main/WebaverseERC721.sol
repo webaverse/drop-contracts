@@ -2,14 +2,17 @@
 pragma solidity 0.8.7;
 pragma abicoder v2; // required to accept structs as function parameters
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "../utils/WBVRSVoucher.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "../utils/WebaverseVoucher.sol";
 
-contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
-    using EnumerableSet for EnumerableSet.UintSet;
+contract WebaverseERC721 is
+    WebaverseVoucher,
+    ERC721EnumerableUpgradeable,
+    OwnableUpgradeable
+{
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
 
     mapping(address => bool) private _whitelistedMinters; // Mapping of white listed minters
     string private _WebaBaseURI; // Base URI of the collection for Webaverse
@@ -54,11 +57,14 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
         _;
     }
 
-    constructor(
+    function initialize(
         string memory name,
         string memory symbol,
         string memory baseURI_
-    ) ERC721(name, symbol) {
+    ) public initializer {
+        __Ownable_init_unchained();
+        __ERC721_init(name, symbol);
+        _webaverse_voucher_init();
         setBaseURI(baseURI_);
         addMinter(msg.sender);
     }
@@ -79,7 +85,7 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
     }
 
     /**
-     * @notice Mints the a single NFT with given parameters.
+     * @notice Mints a single NFT with given parameters.
      * @param to The address on which the NFT will be minted.
      * @param hash The URL of the NFT.
      * @param name The name of the NFT.
@@ -93,6 +99,7 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
         string memory ext,
         string memory description
     ) public onlyMinter returns (uint256) {
+        require(hashToTokenId[hash] == 0, "ERC721: token already minted");
         uint256 tokenId = getNextTokenId();
         _mint(to, tokenId);
         setMetadata(hash, "name", name);
@@ -357,7 +364,9 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
         address externalContractAddress,
         NFTVoucher calldata voucher
     ) public returns (uint256) {
-        IERC721 externalContract = IERC721(externalContractAddress);
+        IERC721Upgradeable externalContract = IERC721Upgradeable(
+            externalContractAddress
+        );
         // make sure signature is valid and get the address of the signer
         address signer = verifyVoucher(voucher);
 
@@ -477,9 +486,9 @@ contract WebaverseERC721 is WBVRSVoucher, ERC721Enumerable, Ownable {
         public
         view
         virtual
-        override(ERC721Enumerable)
+        override(ERC721EnumerableUpgradeable)
         returns (bool)
     {
-        return ERC721.supportsInterface(interfaceId);
+        return ERC721Upgradeable.supportsInterface(interfaceId);
     }
 }

@@ -3,44 +3,34 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "./WebaverseERC721.sol";
+import "./WebaverseERC1155.sol";
 import "./WebaverseERC20.sol";
 
 contract Webaverse is OwnableUpgradeable {
-    WebaverseERC721 private _erc721;
-    WebaverseERC20 private _erc20;
+    WebaverseERC1155 private _nftContract;
+    WebaverseERC20 private _silkContract;
     uint256 private _mintFee; // ERC20 fee to mint ERC721
     address private _treasuryAddress;
 
     /**
      * @dev Creates the Upgradeable Webaverse contract
-     * @param _erc721Address WebaverseERC721 contract address for Non-fungible tokens
-     * @param _erc20Address WebaverseERC20 contract address for fungible tokens
+     * @param _nftAddress WebaverseERC721 contract address for Non-fungible tokens
+     * @param _silkAddress WebaverseERC20 contract address for fungible tokens
      * @param mintFee_ The amount of WebaverseERC20 tokens required to mint a single NFT
      * @param treasuryAddress_ Address of the treasury account
      */
     function initialize(
-        address _erc721Address,
-        address _erc20Address,
+        address _nftAddress,
+        address _silkAddress,
         uint256 mintFee_,
         address treasuryAddress_
     ) public initializer {
         __Ownable_init();
-        setERC721(_erc721Address);
-        setERC20(_erc20Address);
-        setMintFee(mintFee_);
-        setTreasuryAddress(treasuryAddress_);
+        _nftContract = WebaverseERC1155(_nftAddress);
+        _silkContract = WebaverseERC20(_silkAddress);
+        _mintFee = mintFee_;
+        _treasuryAddress = treasuryAddress_;
     }
-
-    // constructor(
-    //     address _erc721Address,
-    //     address _erc20Address,
-    //     uint256 mintFee_
-    // ) {
-    //     setERC721(_erc721Address);
-    //     setERC20(_erc20Address);
-    //     setMintFee(mintFee_);
-    // }
 
     /**
      * @return The amount of ERC20 tokens required to mint the ERC721 NFT
@@ -52,31 +42,31 @@ contract Webaverse is OwnableUpgradeable {
     /**
      * @return The address of Webaverse ERC721 contract
      */
-    function ERC721Address() public view returns (address) {
-        return address(_erc721);
+    function nftContractAddress() public view returns (address) {
+        return address(_nftContract);
     }
 
     /**
      * @return The address of Webaverse ERC20 contract
      */
-    function ERC20Address() public view returns (address) {
-        return address(_erc20);
+    function silkContractAddress() public view returns (address) {
+        return address(_silkContract);
     }
 
     /**
      * @dev Set the contract instance for ERC721
-     * @param _erc721Address The address of the ERC721 contract that needs to be set
+     * @param _nftContractAddress The address of the ERC721 contract that needs to be set
      */
-    function setERC721(address _erc721Address) public onlyOwner {
-        _erc721 = WebaverseERC721(_erc721Address);
+    function setNftAddress(address _nftContractAddress) public onlyOwner {
+        _nftContract = WebaverseERC1155(_nftContractAddress);
     }
 
     /**
      * @dev Set the contract instance for ERC20
-     * @param _erc20Address The address of the ERC20 contract that needs to be set
+     * @param _silkAddress The address of the ERC20 contract that needs to be set
      */
-    function setERC20(address _erc20Address) public onlyOwner {
-        _erc20 = WebaverseERC20(_erc20Address);
+    function setSilkAddress(address _silkAddress) public onlyOwner {
+        _silkContract = WebaverseERC20(_silkAddress);
     }
 
     /**
@@ -105,43 +95,46 @@ contract Webaverse is OwnableUpgradeable {
     /**
      * @notice Mints the a single NFT with given parameters.
      * @param to The address on which the NFT will be minted.
-     * @param hash The URL of the NFT.
-     * @param name The name of the NFT.
-     * @param ext The name of the NFT.
-     * @param description The description of the NFT.
+     * @param balance Total amount for the given token.
+     * @param uri URI of the NFT.
      **/
     function mint(
         address to,
-        string memory hash,
-        string memory name,
-        string memory ext,
-        string memory description
+        uint256 balance,
+        string memory uri,
+        bytes memory data
     ) public {
         if (mintFee() != 0) {
             require(
-                _erc20.transferFrom(msg.sender, treasuryAddress(), mintFee()),
+                _silkContract.transferFrom(
+                    msg.sender,
+                    treasuryAddress(),
+                    mintFee()
+                ),
                 "Webaverse: Mint transfer failed"
             );
         }
-        _erc721.mint(to, hash, name, ext, description);
+        _nftContract.mint(to, balance, uri, data);
     }
 
     /**
-     * @dev Set metadata for the token. Metadata is a key-value store that can be set by owners and collaborators
-     * @param hash Token hash to add metadata to
-     * @param key Key to store value at
-     * @param value Value to store
-     */
-    function setMetadata(
-        string memory hash,
-        string memory key,
-        string memory value
+     * @notice Mints the a single NFT with given parameters.
+     * @param tokenId The id of the token.
+     * @param trait_type Name of the attribute (as per opensea metadata standard).
+     * @param value String value of the atrribute being added or set (as per opensea metadata standard).
+     * @param display_type Display type of the attribute (as per opensea metadata standard).
+     **/
+    function setAttribute(
+        uint256 tokenId,
+        string memory trait_type,
+        string memory value,
+        string memory display_type
     ) public {
-        uint256 tokenId = _erc721.getTokenIdFromHash(hash);
         require(
-            _erc721.ownerOf(tokenId) == msg.sender,
-            "Webaverse: setURI can only be called by the owner of the NFT"
+            _nftContract.balanceOf(msg.sender, tokenId) ==
+                _nftContract.getTokenBalance(tokenId),
+            "Webaverse: Only owner can set attributes"
         );
-        _erc721.setMetadata(hash, key, value);
+        _nftContract.setAttribute(tokenId, trait_type, value, display_type);
     }
 }
