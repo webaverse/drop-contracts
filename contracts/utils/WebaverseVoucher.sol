@@ -2,17 +2,19 @@
 pragma solidity 0.8.7;
 pragma abicoder v2; // required to accept structs as function parameters
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/draft-EIP712Upgradeable.sol";
 
-contract WBVRSVoucher is EIP712 {
+contract WebaverseVoucher is EIP712Upgradeable {
     string private constant SIGNING_DOMAIN = "Webaverse-voucher";
     string private constant SIGNATURE_VERSION = "1";
 
     // mapping to store the bunred nonces for the signers to prevent replay attacks
     mapping(uint256 => bool) public burnedNonces;
 
-    constructor() EIP712(SIGNING_DOMAIN, SIGNATURE_VERSION) {}
+    function _webaverse_voucher_init() public initializer {
+        __EIP712_init(SIGNING_DOMAIN, SIGNATURE_VERSION);
+    }
 
     /// @dev Represents a schema to claim an NFT, which has already been minted on blockchain. A signed voucher can be redeemed for a real NFT using the claim function.
     struct NFTVoucher {
@@ -91,6 +93,6 @@ contract WBVRSVoucher is EIP712 {
         returns (address)
     {
         bytes32 digest = _hash(voucher);
-        return ECDSA.recover(digest, voucher.signature);
+        return ECDSAUpgradeable.recover(digest, voucher.signature);
     }
 }
